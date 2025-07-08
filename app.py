@@ -209,7 +209,7 @@ if uploaded_file:
             if st.button("Eksik Değerli Satırları Sil"):
                 st.session_state.processed_df = df.dropna()
                 st.success(f"✅ {len(df) - len(st.session_state.processed_df)} satır silindi!")
-                st.experimental_rerun()
+                st.rerun()
         
         elif solution_method == "Yöntem 2: Basit Atama":
             st.info("**Açıklama:** Eksik değerleri basit istatistiksel yöntemlerle doldurur.")
@@ -237,7 +237,7 @@ if uploaded_file:
                     if st.button("Uygula"):
                         st.session_state.processed_df[selected_column] = df[selected_column].fillna(fill_value)
                         st.success(f"✅ {selected_column} sütunu dolduruldu!")
-                        st.experimental_rerun()
+                        st.rerun()
                 
                 else:  # Kategorik
                     fill_method = st.selectbox(
@@ -263,7 +263,7 @@ if uploaded_file:
                             st.session_state.processed_df[selected_column] = df[selected_column].fillna(fill_value)
                         
                         st.success(f"✅ {selected_column} sütunu dolduruldu!")
-                        st.experimental_rerun()
+                        st.rerun()
         
         elif solution_method == "Yöntem 3: Kategorik Kırılımında Atama":
             st.info("**Açıklama:** Eksik değerleri başka bir kategorik değişkene göre gruplandırarak doldurur.")
@@ -283,7 +283,7 @@ if uploaded_file:
                         if st.button("Gruplandırılmış Ortalama ile Doldur"):
                             st.session_state.processed_df[selected_target] = df[selected_target].fillna(df.groupby(selected_group)[selected_target].transform('mean'))
                             st.success(f"✅ {selected_target} sütunu {selected_group} gruplarının ortalamasıyla dolduruldu!")
-                            st.experimental_rerun()
+                            st.rerun()
                 else:
                     st.warning("Numerik eksik değerli sütun bulunamadı!")
             else:
@@ -333,7 +333,7 @@ if uploaded_file:
 
                         st.success("✅ KNN algoritmasıyla eksik değerler dolduruldu!")
 
-                        st.experimental_rerun()
+                        st.rerun()
 
                         
 
@@ -375,7 +375,7 @@ if uploaded_file:
 
             st.success("✅ Veriler orijinal haline sıfırlandı!")
 
-            st.experimental_rerun()
+            st.rerun()
 
     
 
