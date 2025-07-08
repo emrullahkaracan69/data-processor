@@ -1,6 +1,3 @@
-Mükemmel! Çok detaylı bir eksik veri analizi sistemi yapalım. İşte yeniden yazılmış app.py:
-
-```python
 import streamlit as st
 import pandas as pd
 import numpy as np
