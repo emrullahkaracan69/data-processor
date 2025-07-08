@@ -155,6 +155,18 @@ if uploaded_file:
         st.warning(f"**{len(na_columns)} sütunda eksik değer bulundu:**")
         st.dataframe(missing_df, use_container_width=True)
         
+        # Eksik değerlerin hedef değişken ile analizi
+        st.subheader("🎯 Eksik Değerlerin Hedef Değişken ile Analizi")
+        
+        target_col = st.selectbox("Hedef değişkeni seçin:", df.columns)
+        
+        if target_col and st.button("Eksik Değer vs Hedef Analizi"):
+            results = missingVsTarget(df, target_col, na_columns)
+            
+            for col_name, result_df in results.items():
+                st.write(f"**{col_name}:**")
+                st.dataframe(result_df)
+        
         # Eksik değer çözüm yöntemleri
         st.header("🔧 Eksik Değer Çözüm Yöntemleri")
         
@@ -164,8 +176,7 @@ if uploaded_file:
                 "Seçim yapın...",
                 "Yöntem 1: Silmek",
                 "Yöntem 2: Basit Atama",
-                "Yöntem 3: Kategorik Kırılımında Atama",
-                "Yöntem 4: Tahmine Dayalı Atama (KNN)"
+                "Yöntem 3: Kategorik Kırılımında Atama"
             ]
         )
         
@@ -202,6 +213,11 @@ if uploaded_file:
                     elif fill_method == "Sabit Değer":
                         fill_value = st.number_input("Sabit değer girin:")
                     
+                    if st.button("Uygula"):
+                        df[selected_column] = df[selected_column].fillna(fill_value)
+                        st.success(f"✅ {selected_column} sütunu dolduruldu!")
+                        st.dataframe(df[selected_column].head(10))
+                
                 else:  # Kategorik
                     fill_method = st.selectbox(
                         "Doldurma yöntemini seçin:",
@@ -213,20 +229,17 @@ if uploaded_file:
                         st.info(f"Mod değer: {fill_value}")
                     elif fill_method == "Sabit Değer":
                         fill_value = st.text_input("Sabit değer girin:")
-                
-                if st.button("Uygula"):
-                    if col_dtype in ['int64', 'float64']:
-                        df[selected_column] = df[selected_column].fillna(fill_value)
-                    else:
+                    
+                    if st.button("Uygula"):
                         if fill_method == "Önceki Satır":
                             df[selected_column] = df[selected_column].fillna(method='ffill')
                         elif fill_method == "Sonraki Satır":
                             df[selected_column] = df[selected_column].fillna(method='bfill')
                         else:
                             df[selected_column] = df[selected_column].fillna(fill_value)
-                    
-                    st.success(f"✅ {selected_column} sütunu dolduruldu!")
-                    st.dataframe(df[selected_column].head(10))
+                        
+                        st.success(f"✅ {selected_column} sütunu dolduruldu!")
+                        st.dataframe(df[selected_column].head(10))
         
         elif solution_method == "Yöntem 3: Kategorik Kırılımında Atama":
             st.info("**Açıklama:** Eksik değerleri başka bir kategorik değişkene göre gruplandırarak doldurur.")
@@ -247,30 +260,12 @@ if uploaded_file:
                             df[selected_target] = df[selected_target].fillna(df.groupby(selected_group)[selected_target].transform('mean'))
                             st.success(f"✅ {selected_target} sütunu {selected_group} gruplarının ortalamasıyla dolduruldu!")
                 else:
-                    st.warning("Önce değişken tiplerini belirleyin!")
+                    st.warning("Numerik eksik değerli sütun bulunamadı!")
             else:
                 st.warning("Önce değişken tiplerini belirleyin!")
-        
-        elif solution_method == "Yöntem 4: Tahmine Dayalı Atama (KNN)":
-            st.info("**Açıklama:** K-Nearest Neighbors algoritmasıyla eksik değerleri tahmin eder.")
-            
-            if 'catCols' in st.session_state:
-                k_neighbors = st.slider("K (komşu sayısı)", 3, 10, 5)
-                
-                if st.button("KNN ile Doldur"):
-                    try:
-                        # Encoding ve scaling
-                        catCols = st.session_state.catCols
-                        numCols = st.session_state.numCols
-                        
-                        # Get dummies
-                        df_encoded = pd.get_dummies(df[catCols + numCols], drop_first=True)
-                        
-                        # Scaling
-                        scaler = MinMaxScaler()
-                        df_scaled = pd.DataFrame(scaler.fit_transform(df_encoded), columns=df_encoded.columns)
-                        
-                        # KNN Imputation
-                        imputer = KNNImputer(n_neighbors=k_neighbors)
-                        df_imputed = pd.DataFrame(imputer.fit_transform(df_scaled), columns=df_scaled.columns)
-                        
+    
+    else:
+        st.success("✅ Eksik değer bulunmuyor!")
+
+else:
+    st.info("👆 Lütfen analiz etmek istediğiniz CSV veya Excel dosyasını yükleyin")
