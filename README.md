@@ -4,7 +4,7 @@
 A professional-grade web application for comprehensive data preprocessing, outlier detection, and exploratory data analysis built with Streamlit.
 
 ## 🚀 Live Demo
-Try the app live: [data-processor.streamlit.app](https://data-processor.streamlit.app)
+Try the app live: [data-processor.streamlit.app](https://emrullahkaracan69-data-processor-app-kj90xt.streamlit.app)
 
 ## ✨ Key Features
 
