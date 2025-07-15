@@ -486,3 +486,39 @@ def outlier_section():
     if st.button("Continue to Data Cleaning →", type="primary", use_container_width=True):
         st.session_state['current_step'] = 'cleaning'
         st.rerun()
+
+
+
+def cleaning_section():
+    """Data cleaning section"""
+    st.header("🧹 Data Cleaning")
+    st.info("Data cleaning section - Coming soon!")
+    
+    if st.button("Continue to Download →", type="primary", use_container_width=True):
+        st.session_state['current_step'] = 'download'
+        st.rerun()
+
+def download_section():
+    """Download processed data section"""
+    st.header("💾 Download Processed Data")
+    
+    df = st.session_state['processed_data']
+    
+    st.subheader("📊 Processing Summary")
+    
+    # Show processing steps
+    if st.session_state['processing_steps']:
+        for step in st.session_state['processing_steps']:
+            st.success(f"✅ {step['step']} - {step['details']} ({step['timestamp']})")
+    
+    # Show final data info
+    st.subheader("📈 Final Dataset Statistics")
+    display_data_info(df)
+    
+    # Download button
+    st.markdown("---")
+    create_download_button(df, f"processed_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+
+# Run the app
+if __name__ == "__main__":
+    main()
