@@ -40,21 +40,7 @@ Try the app live: [data-processor.streamlit.app](https://data-processor.streamli
 - **Feature Engineering**: Create new features from existing ones
 - **Data Export**: Download processed data in CSV format
 
-## 🏗️ Project Architecture
-"""
-data-processor/
-│
-├── app.py                 # Main Streamlit application
-├── requirements.txt       # Project dependencies
-├── README.md             # Project documentation
-├── .gitignore           # Git ignore file
-│
-└── src/                 # Source code modules
-    ├── __init__.py      # Package initializer
-    ├── data_loader.py   # Data loading and validation
-    ├── outlier_handler.py # Outlier detection algorithms
-    └── utils.py         # Utility functions and helpers
-"""
+
 ## 🔧 Installation & Setup
 
 ### Prerequisites
