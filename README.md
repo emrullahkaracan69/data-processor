@@ -1,6 +1,4 @@
-Haklısınız, özür dilerim. İşte README.md dosyasının tamamı tek blok halinde:
 
-```markdown
 # 📊 Data Processor - Advanced Data Preprocessing & Analysis Tool
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://data-processor.streamlit.app)
@@ -162,4 +160,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 ⭐ If you find this project useful, please consider giving it a star on GitHub!
-```
