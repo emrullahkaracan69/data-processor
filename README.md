@@ -41,7 +41,7 @@ Try the app live: [data-processor.streamlit.app](https://data-processor.streamli
 - **Data Export**: Download processed data in CSV format
 
 ## 🏗️ Project Architecture
-
+'''
 data-processor/
 │
 ├── app.py                 # Main Streamlit application
@@ -54,31 +54,12 @@ data-processor/
     ├── data_loader.py   # Data loading and validation
     ├── outlier_handler.py # Outlier detection algorithms
     └── utils.py         # Utility functions and helpers
-
+'''
 ## 🔧 Installation & Setup
 
 ### Prerequisites
 - Python 3.8 or higher
 - pip package manager
-
-### Local Installation
-
-1. **Clone the repository**
-git clone https://github.com/emrullahkaracan69/data-processor.git
-cd data-processor
-
-2. **Create virtual environment** (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-3. **Install dependencies**
-pip install -r requirements.txt
-
-4. **Run the application**
-streamlit run app.py
-
-5. **Access the app**
-Open your browser and navigate to http://localhost:8501
 
 ## 📖 Usage Guide
 
