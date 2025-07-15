@@ -1,3 +1,5 @@
+Haklısınız, özür dilerim. İşte README.md dosyasının tamamı tek blok halinde:
+
 ```markdown
 # 📊 Data Processor - Advanced Data Preprocessing & Analysis Tool
 
@@ -42,7 +44,6 @@ Try the app live: [data-processor.streamlit.app](https://data-processor.streamli
 
 ## 🏗️ Project Architecture
 
-```
 data-processor/
 │
 ├── app.py                 # Main Streamlit application
@@ -55,15 +56,38 @@ data-processor/
     ├── data_loader.py   # Data loading and validation
     ├── outlier_handler.py # Outlier detection algorithms
     └── utils.py         # Utility functions and helpers
-```
 
+## 🔧 Installation & Setup
+
+### Prerequisites
+- Python 3.8 or higher
+- pip package manager
+
+### Local Installation
+
+1. **Clone the repository**
+git clone https://github.com/emrullahkaracan69/data-processor.git
+cd data-processor
+
+2. **Create virtual environment** (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+3. **Install dependencies**
+pip install -r requirements.txt
+
+4. **Run the application**
+streamlit run app.py
+
+5. **Access the app**
+Open your browser and navigate to http://localhost:8501
 
 ## 📖 Usage Guide
 
 ### 1. Upload Your Data
 - Click on "Browse files" or drag and drop your CSV/Excel file
 - Maximum file size: 200MB
-- Supported formats: `.csv`, `.xlsx`, `.xls`
+- Supported formats: .csv, .xlsx, .xls
 
 ### 2. Explore Your Data
 - View basic statistics and data types
@@ -115,19 +139,19 @@ data-processor/
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (git checkout -b feature/AmazingFeature)
+3. Commit your changes (git commit -m 'Add some AmazingFeature')
+4. Push to the branch (git push origin feature/AmazingFeature)
 5. Open a Pull Request
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 👨‍💻 Author
 
 **Emrullah Karacan**
-- Linkedin: [Emrullah Karacan](https://www.linkedin.com/in/emrullah-karacan-4b596b21b/)
+- GitHub: [@emrullahkaracan69](https://github.com/emrullahkaracan69)
 
 ## 🙏 Acknowledgments
 
