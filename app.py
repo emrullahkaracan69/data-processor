@@ -1,499 +1,488 @@
+"""
+Data Preprocessing Tool
+A professional web application for data preprocessing and outlier handling
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.impute import KNNImputer
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime
 import io
 
-st.set_page_config(page_title="Data Processor", page_icon="📊", layout="wide")
+# Import custom modules
+from src.outlier_handler import *
+from src.data_loader import load_data, validate_data
+from src.utils import get_data_summary, create_missing_value_plot, create_outlier_plot
 
-st.title("📊 Data Processor")
-st.write("Kapsamlı veri analizi ve eksik değer çözümleri")
 
-# Fonksiyonları tanımlayalım
-def grabColNames(dataframe, catTh=10, carTh=20):
-    """Veri setindeki kategorik, numerik ve kardinal değişkenleri ayırır"""
-    catCols = [col for col in dataframe.columns if dataframe[col].dtypes == "O"]
-    numButCat = [col for col in dataframe.columns if dataframe[col].nunique() < catTh and
-                   dataframe[col].dtypes != "O"]
-    catButCar = [col for col in dataframe.columns if dataframe[col].nunique() > carTh and
-                   dataframe[col].dtypes == "O"]
-    catCols = catCols + numButCat
-    catCols = [col for col in catCols if col not in catButCar]
-    
-    numCols = [col for col in dataframe.columns if dataframe[col].dtypes != "O"]
-    numCols = [col for col in numCols if col not in numButCat]
-    
-    return catCols, numCols, catButCar
 
-def missingValuesTable(dataframe, naName=False):
-    """Eksik değer analizi"""
-    naColumns = [col for col in dataframe.columns if dataframe[col].isnull().sum() > 0]
-    
-    if len(naColumns) == 0:
-        return pd.DataFrame(), []
-    
-    nMiss = dataframe[naColumns].isnull().sum().sort_values(ascending=False)
-    ratio = (dataframe[naColumns].isnull().sum() / dataframe.shape[0] * 100).sort_values(ascending=False)
-    missingDf = pd.concat([nMiss, np.round(ratio, 2)], axis=1, keys=['Eksik_Sayi', 'Yuzde'])
-    
-    if naName:
-        return missingDf, naColumns
-    return missingDf
+# Page configuration
+st.set_page_config(
+    page_title="Data Preprocessing Tool",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-def missingVsTarget(dataframe, target, naColumns):
-    """Eksik değerlerin hedef değişken ile analizi"""
-    tempDf = dataframe.copy()
-    results = {}
-    
-    for col in naColumns:
-        tempDf[col + '_NA_FLAG'] = np.where(tempDf[col].isnull(), 1, 0)
-    
-    naFlags = tempDf.loc[:, tempDf.columns.str.contains("_NA_")].columns
-    
-    for col in naFlags:
-        result = pd.DataFrame({
-            "TARGET_MEAN": tempDf.groupby(col)[target].mean(),
-            "Count": tempDf.groupby(col)[target].count()
-        })
-        results[col] = result
-    
-    return results
 
+
+# Custom CSS for professional styling
+def load_css():
+    st.markdown("""
+    <style>
+    .main {
+        padding: 0rem 1rem;
+    }
+    .stButton>button {
+        background-color: #0066cc;
+        color: white;
+        border-radius: 5px;
+        border: none;
+        padding: 0.5rem 1rem;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #0052a3;
+        transform: translateY(-2px);
+    }
+    .metric-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .upload-section {
+        background-color: #e8f4f8;
+        padding: 2rem;
+        border-radius: 10px;
+        border: 2px dashed #0066cc;
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+
+# Initialize session state
+def init_session_state():
+    if 'data' not in st.session_state:
+        st.session_state['data'] = None
+    if 'processed_data' not in st.session_state:
+        st.session_state['processed_data'] = None
+    if 'processing_steps' not in st.session_state:
+        st.session_state['processing_steps'] = []
+    if 'current_step' not in st.session_state:
+        st.session_state['current_step'] = 'upload'
+
+
+
+# Download functions
 def convert_df_to_csv(df):
-    """DataFrame'i CSV formatına çevirir"""
+    """Convert dataframe to CSV for download"""
     return df.to_csv(index=False).encode('utf-8')
 
-def convert_df_to_excel(df):
-    """DataFrame'i Excel formatına çevirir"""
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Processed_Data')
-    return output.getvalue()
 
-# Ana uygulama
-uploaded_file = st.file_uploader("Dosya seçin", type=['csv', 'xlsx'])
 
-if uploaded_file:
-    st.success(f"Dosya yüklendi: {uploaded_file.name}")
+def create_download_button(df, filename="processed_data.csv"):
+    """Create download button for processed data"""
+    csv = convert_df_to_csv(df)
+    st.download_button(
+        label="📥 Download Processed Data",
+        data=csv,
+        file_name=filename,
+        mime='text/csv',
+        key='download_button'
+    )
+
+
+
+# Display functions
+def display_data_info(df):
+    """Display data information in a nice format"""
+    summary = get_data_summary(df)
     
-    # Veri okuma
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+    col1, col2, col3, col4 = st.columns(4)
     
-    # DataFrame'i session state'e kaydet
-    if 'original_df' not in st.session_state:
-        st.session_state.original_df = df.copy()
-        st.session_state.processed_df = df.copy()
-    
-    # İşlenmiş veriyi kullan
-    df = st.session_state.processed_df
-    
-    # Temel veri inceleme
-    st.header("📋 Temel Veri İnceleme")
-    
-    col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Satır Sayısı", df.shape[0])
+        st.metric("Rows", f"{summary['shape'][0]:,}")
     with col2:
-        st.metric("Sütun Sayısı", df.shape[1])
+        st.metric("Columns", summary['shape'][1])
     with col3:
-        st.metric("Toplam Eksik Veri", df.isnull().sum().sum())
+        st.metric("Missing Values", f"{summary['missing_values']:,}")
+    with col4:
+        st.metric("Duplicates", f"{summary['duplicate_rows']:,}")
     
-    # Veri önizleme
-    st.subheader("👀 Veri Önizleme")
-    show_rows = st.slider("Görüntülenecek satır sayısı", 5, min(50, len(df)), 10)
-    st.dataframe(df.head(show_rows), use_container_width=True)
+    col5, col6, col7, col8 = st.columns(4)
     
-    # İstatistiksel özellikler
-    st.subheader("📊 İstatistiksel Özellikler")
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-    if len(numeric_cols) > 0:
-        st.dataframe(df[numeric_cols].describe(), use_container_width=True)
+    with col5:
+        st.metric("Memory (MB)", f"{summary['memory_usage_mb']:.2f}")
+    with col6:
+        st.metric("Numeric Cols", summary['numeric_columns'])
+    with col7:
+        st.metric("Categorical Cols", summary['categorical_columns'])
+    with col8:
+        st.metric("Missing %", f"{summary['missing_percentage']:.2f}%")
+
+
+
+# Main application
+def main():
+    # Load CSS
+    load_css()
     
-    # Unique değerler analizi
-    st.header("🔍 Unique Değerler Analizi")
-    st.write("**Her sütun için unique değer sayıları:**")
+    # Initialize session state
+    init_session_state()
     
-    unique_counts = pd.DataFrame({
-        'Sütun': df.columns,
-        'Unique_Sayi': [df[col].nunique() for col in df.columns],
-        'Veri_Tipi': [str(df[col].dtype) for col in df.columns]
-    }).sort_values('Unique_Sayi', ascending=False)
+    # Header
+    st.title("🔧 Professional Data Preprocessing Tool")
+    st.markdown("---")
     
-    st.dataframe(unique_counts, use_container_width=True)
+    # Sidebar
+    with st.sidebar:
+        st.header("📊 Navigation")
+        
+        # Show current step
+        if st.session_state['data'] is None:
+            st.info("👆 Please upload a dataset to begin")
+        else:
+            st.success("✅ Dataset loaded successfully!")
+            
+            # Navigation buttons
+            if st.button("🏠 Start Over", use_container_width=True):
+                for key in st.session_state.keys():
+                    del st.session_state[key]
+                st.rerun()
+            
+            st.markdown("---")
+            st.markdown("### Processing Steps:")
+            st.markdown("1. 📤 Upload Data")
+            st.markdown("2. 🔍 Data Overview")
+            st.markdown("3. 🎯 Outlier Detection")
+            st.markdown("4. 🧹 Data Cleaning")
+            st.markdown("5. 💾 Download Results")
     
-    # Değişken tipi belirleme
-    st.header("🏷️ Değişken Tipi Belirleme")
+    # Main content area
+    if st.session_state['current_step'] == 'upload':
+        upload_section()
+    elif st.session_state['current_step'] == 'overview':
+        overview_section()
+    elif st.session_state['current_step'] == 'outlier':
+        outlier_section()
+    elif st.session_state['current_step'] == 'cleaning':
+        cleaning_section()
+    elif st.session_state['current_step'] == 'download':
+        download_section()
+
+
+# Section functions
+def upload_section():
+    """File upload section"""
+    st.header("📤 Upload Your Dataset")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        cat_threshold = st.number_input("Kategorik eşik değeri (unique sayısı)", 1, 50, 10)
+    # Create upload area
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
     with col2:
-        car_threshold = st.number_input("Kardinal eşik değeri (unique sayısı)", 10, 100, 20)
+        st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+        st.markdown("### Drag and drop your file here")
+        st.markdown("**Supported formats:** CSV, Excel (xlsx, xls)")
+        st.markdown("**Maximum size:** 200 MB")
+        
+        uploaded_file = st.file_uploader(
+            "Choose a file",
+            type=['csv', 'xlsx', 'xls'],
+            help="Upload your dataset for preprocessing"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
     
-    if st.button("Değişken Tiplerini Belirle"):
-        catCols, numCols, catButCar = grabColNames(df, cat_threshold, car_threshold)
-        
-        st.success(f"**Analiz Sonuçları:**")
-        st.write(f"• **Kategorik değişkenler:** {len(catCols)} adet")
-        st.write(f"• **Numerik değişkenler:** {len(numCols)} adet")
-        st.write(f"• **Kardinal değişkenler:** {len(catButCar)} adet")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.write("**📝 Kategorik Değişkenler:**")
-            for col in catCols:
-                st.write(f"• {col}")
+    if uploaded_file is not None:
+        # Show file info
+        file_details = {
+            "Filename": uploaded_file.name,
+            "File Size": f"{uploaded_file.size / 1024 / 1024:.2f} MB",
+            "File Type": uploaded_file.type
+        }
         
         with col2:
-            st.write("**🔢 Numerik Değişkenler:**")
-            for col in numCols:
-                st.write(f"• {col}")
+            st.markdown("### File Details")
+            for key, value in file_details.items():
+                st.write(f"**{key}:** {value}")
         
-        with col3:
-            st.write("**🗂️ Kardinal Değişkenler:**")
-            for col in catButCar:
-                st.write(f"• {col}")
-        
-        # Session state'e kaydet
-        st.session_state.catCols = catCols
-        st.session_state.numCols = numCols
-        st.session_state.catButCar = catButCar
-    
-    # Eksik değer analizi
-    st.header("❌ Eksik Değer Analizi")
-    
-    missing_df, na_columns = missingValuesTable(df, naName=True)
-    
-    if len(na_columns) > 0:
-        st.warning(f"**{len(na_columns)} sütunda eksik değer bulundu:**")
-        st.dataframe(missing_df, use_container_width=True)
-        
-        # Eksik değerlerin hedef değişken ile analizi
-        st.subheader("🎯 Eksik Değerlerin Hedef Değişken ile Analizi")
-        
-        target_col = st.selectbox("Hedef değişkeni seçin:", df.columns)
-        
-        if target_col and st.button("Eksik Değer vs Hedef Analizi"):
-            results = missingVsTarget(df, target_col, na_columns)
-            
-            for col_name, result_df in results.items():
-                st.write(f"**{col_name}:**")
-                st.dataframe(result_df)
-        
-        # Eksik değer çözüm yöntemleri
-        st.header("🔧 Eksik Değer Çözüm Yöntemleri")
-        
-        solution_method = st.selectbox(
-            "Çözüm yöntemini seçin:",
-            [
-                "Seçim yapın...",
-                "Yöntem 1: Silmek",
-                "Yöntem 2: Basit Atama",
-                "Yöntem 3: Kategorik Kırılımında Atama",
-                "Yöntem 4: Tahmine Dayalı Atama (KNN)"
-            ]
-        )
-        
-        if solution_method == "Yöntem 1: Silmek":
-            st.info("**Açıklama:** Eksik değeri olan satırları tamamen siler.")
-            st.warning(f"**Mevcut satır sayısı:** {len(df)}")
-            st.warning(f"**Silindikten sonra kalan satır sayısı:** {len(df.dropna())}")
-            
-            if st.button("Eksik Değerli Satırları Sil"):
-                st.session_state.processed_df = df.dropna()
-                st.success(f"✅ {len(df) - len(st.session_state.processed_df)} satır silindi!")
-                st.rerun()
-        
-        elif solution_method == "Yöntem 2: Basit Atama":
-            st.info("**Açıklama:** Eksik değerleri basit istatistiksel yöntemlerle doldurur.")
-            
-            selected_column = st.selectbox("Doldurmak istediğiniz sütunu seçin:", na_columns)
-            
-            if selected_column:
-                col_dtype = df[selected_column].dtype
+        # Load data button
+        if st.button("🚀 Load Data", use_container_width=True):
+            with st.spinner("Loading data..."):
+                df = load_data(uploaded_file)
                 
-                if col_dtype in ['int64', 'float64']:  # Numerik
-                    fill_method = st.selectbox(
-                        "Doldurma yöntemini seçin:",
-                        ["Ortalama", "Medyan", "Sabit Değer"]
-                    )
+                if df is not None:
+                    # Validate data
+                    validation = validate_data(df)
                     
-                    if fill_method == "Ortalama":
-                        fill_value = df[selected_column].mean()
-                        st.info(f"Ortalama değer: {fill_value:.2f}")
-                    elif fill_method == "Medyan":
-                        fill_value = df[selected_column].median()
-                        st.info(f"Medyan değer: {fill_value:.2f}")
-                    elif fill_method == "Sabit Değer":
-                        fill_value = st.number_input("Sabit değer girin:")
-                    
-                    if st.button("Uygula"):
-                        st.session_state.processed_df[selected_column] = df[selected_column].fillna(fill_value)
-                        st.success(f"✅ {selected_column} sütunu dolduruldu!")
+                    if validation['is_valid']:
+                        st.session_state['data'] = df
+                        st.session_state['processed_data'] = df.copy()
+                        st.session_state['current_step'] = 'overview'
+                        st.success("✅ Data loaded successfully!")
                         st.rerun()
-                
-                else:  # Kategorik
-                    fill_method = st.selectbox(
-                        "Doldurma yöntemini seçin:",
-                        ["Mod (En Sık Değer)", "Önceki Satır", "Sonraki Satır", "Sabit Değer"]
-                    )
-                    
-                    if fill_method == "Mod (En Sık Değer)":
-                        if len(df[selected_column].mode()) > 0:
-                            fill_value = df[selected_column].mode()[0]
-                            st.info(f"Mod değer: {fill_value}")
-                        else:
-                            st.error("Mod değer bulunamadı!")
-                    elif fill_method == "Sabit Değer":
-                        fill_value = st.text_input("Sabit değer girin:")
-                    
-                    if st.button("Uygula"):
-                        if fill_method == "Önceki Satır":
-                            st.session_state.processed_df[selected_column] = df[selected_column].fillna(method='ffill')
-                        elif fill_method == "Sonraki Satır":
-                            st.session_state.processed_df[selected_column] = df[selected_column].fillna(method='bfill')
-                        else:
-                            st.session_state.processed_df[selected_column] = df[selected_column].fillna(fill_value)
-                        
-                        st.success(f"✅ {selected_column} sütunu dolduruldu!")
-                        st.rerun()
-        
-        elif solution_method == "Yöntem 3: Kategorik Kırılımında Atama":
-            st.info("**Açıklama:** Eksik değerleri başka bir kategorik değişkene göre gruplandırarak doldurur.")
-            
-            if 'catCols' in st.session_state:
-                numeric_na_cols = [col for col in na_columns if col in st.session_state.numCols]
-                
-                if len(numeric_na_cols) > 0:
-                    selected_target = st.selectbox("Doldurulacak numerik sütun:", numeric_na_cols)
-                    selected_group = st.selectbox("Gruplandırma sütunu:", st.session_state.catCols)
-                    
-                    if selected_target and selected_group:
-                        group_means = df.groupby(selected_group)[selected_target].mean()
-                        st.write("**Grup ortalama değerleri:**")
-                        st.dataframe(group_means.to_frame("Ortalama"))
-                        
-                        if st.button("Gruplandırılmış Ortalama ile Doldur"):
-                            st.session_state.processed_df[selected_target] = df[selected_target].fillna(df.groupby(selected_group)[selected_target].transform('mean'))
-                            st.success(f"✅ {selected_target} sütunu {selected_group} gruplarının ortalamasıyla dolduruldu!")
-                            st.rerun()
-                else:
-                    st.warning("Numerik eksik değerli sütun bulunamadı!")
-            else:
-                st.warning("Önce değişken tiplerini belirleyin!")
-        
-        elif solution_method == "Yöntem 4: Tahmine Dayalı Atama (KNN)":
-            st.info("**Açıklama:** K-Nearest Neighbors algoritmasıyla eksik değerleri tahmin eder.")
-            
-            if 'catCols' in st.session_state:
-                k_neighbors = st.slider("K (komşu sayısı)", 3, 10, 5)
-                
-                if st.button("KNN ile Doldur"):
-                    try:
-                        # Encoding ve scaling
-                        catCols = st.session_state.catCols
-                        numCols = st.session_state.numCols
-                        
-                        # Get dummies
-                        df_encoded = pd.get_dummies(df[catCols + numCols], drop_first=True)
-                        
-                        # Scaling
-                        scaler = MinMaxScaler()
-                        df_scaled = pd.DataFrame(scaler.fit_transform(df_encoded), columns=df_encoded.columns)
-                        
-                        # KNN Imputation
-                        imputer = KNNImputer(n_neighbors=k_neighbors)
+                    else:
+                        for msg in validation['messages']:
+                            st.error(msg)
 
-                        df_imputed = pd.DataFrame(imputer.fit_transform(df_scaled), columns=df_scaled.columns)
 
-                        
-
-                        # Eski haline çevirme
-
-                        df_final = pd.DataFrame(scaler.inverse_transform(df_imputed), columns=df_scaled.columns)
-
-                        
-
-                        # Orijinal DataFrame'e geri koyma
-
-                        for col in numCols:
-
-                            if col in df_final.columns:
-
-                                st.session_state.processed_df[col] = df_final[col]
-
-                        
-
-                        st.success("✅ KNN algoritmasıyla eksik değerler dolduruldu!")
-
-                        st.rerun()
-
-                        
-
-                    except Exception as e:
-
-                        st.error(f"Hata: {str(e)}")
-
-                        st.warning("KNN yöntemi için tüm kategorik değişkenler sayısal değerlere dönüştürülmelidir.")
-
-            else:
-
-                st.warning("Önce değişken tiplerini belirleyin!")
-
+def overview_section():
+    """Data overview section"""
+    st.header("🔍 Data Overview")
     
-
-    else:
-
-        st.success("✅ Eksik değer bulunmuyor!")
-
+    df = st.session_state['data']
     
-
-    # Veri İndirme Bölümü
-
-    st.header("💾 İşlenmiş Veriyi İndir")
-
+    # Display data info
+    st.subheader("📊 Dataset Statistics")
+    display_data_info(df)
     
-
-    col1, col2, col3 = st.columns(3)
-
+    # Show data preview
+    st.markdown("---")
+    st.subheader("👀 Data Preview")
     
-
-    with col1:
-
-        # Orijinal veriyi sıfırla
-
-        if st.button("🔄 Orijinal Veriye Sıfırla"):
-
-            st.session_state.processed_df = st.session_state.original_df.copy()
-
-            st.success("✅ Veriler orijinal haline sıfırlandı!")
-
-            st.rerun()
-
+    tab1, tab2, tab3 = st.tabs(["First 10 Rows", "Last 10 Rows", "Random Sample"])
     
-
-    with col2:
-
-        # CSV olarak indir
-
-        csv_data = convert_df_to_csv(st.session_state.processed_df)
-
-        st.download_button(
-
-            label="📥 CSV olarak İndir",
-
-            data=csv_data,
-
-            file_name=f"processed_data_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
-
-            mime="text/csv"
-
-        )
-
+    with tab1:
+        st.dataframe(df.head(10), use_container_width=True)
     
-
-    with col3:
-
-        # Excel olarak indir
-
-        excel_data = convert_df_to_excel(st.session_state.processed_df)
-
-        st.download_button(
-
-            label="📥 Excel olarak İndir",
-
-            data=excel_data,
-
-            file_name=f"processed_data_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-        )
-
+    with tab2:
+        st.dataframe(df.tail(10), use_container_width=True)
     
-
-    # Değişikliklerin özeti
-
-    st.header("📋 Değişikliklerin Özeti")
-
+    with tab3:
+        sample_size = min(10, len(df))
+        st.dataframe(df.sample(n=sample_size), use_container_width=True)
     
-
+    # Column information
+    st.markdown("---")
+    st.subheader("📋 Column Information")
+    
+    # Get column types using our function
+    cat_cols, num_cols, cat_but_car, summary = grab_col_names(df)
+    
     col1, col2 = st.columns(2)
-
     
-
     with col1:
-
-        st.subheader("🔵 Orijinal Veri")
-
-        st.write(f"**Satır sayısı:** {st.session_state.original_df.shape[0]}")
-
-        st.write(f"**Sütun sayısı:** {st.session_state.original_df.shape[1]}")
-
-        st.write(f"**Eksik değer:** {st.session_state.original_df.isnull().sum().sum()}")
-
+        st.markdown("### Data Types")
+        dtype_df = pd.DataFrame({
+            'Column': df.columns,
+            'Type': df.dtypes.astype(str),
+            'Non-Null Count': df.count(),
+            'Null Count': df.isnull().sum()
+        })
+        st.dataframe(dtype_df, use_container_width=True)
     
-
     with col2:
-
-        st.subheader("🟢 İşlenmiş Veri")
-
-        st.write(f"**Satır sayısı:** {st.session_state.processed_df.shape[0]}")
-
-        st.write(f"**Sütun sayısı:** {st.session_state.processed_df.shape[1]}")
-
-        st.write(f"**Eksik değer:** {st.session_state.processed_df.isnull().sum().sum()}")
-
+        st.markdown("### Column Categories")
+        st.write(f"**Numerical Columns ({len(num_cols)}):**")
+        if num_cols:
+            st.write(", ".join(num_cols[:10]))
+            if len(num_cols) > 10:
+                st.write(f"... and {len(num_cols) - 10} more")
+        
+        st.write(f"**Categorical Columns ({len(cat_cols)}):**")
+        if cat_cols:
+            st.write(", ".join(cat_cols[:10]))
+            if len(cat_cols) > 10:
+                st.write(f"... and {len(cat_cols) - 10} more")
+        
+        if cat_but_car:
+            st.write(f"**High Cardinality Columns ({len(cat_but_car)}):**")
+            st.write(", ".join(cat_but_car))
     
-
-    # Değişikliklerin detayı
-
-    if st.session_state.original_df.shape[0] != st.session_state.processed_df.shape[0]:
-
-        st.info(f"ℹ️ {st.session_state.original_df.shape[0] - st.session_state.processed_df.shape[0]} satır silindi.")
-
+    # Missing values visualization
+    if df.isnull().sum().sum() > 0:
+        st.markdown("---")
+        st.subheader("❓ Missing Values Analysis")
+        
+        fig = create_missing_value_plot(df)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
     
+    # Navigation button
+    st.markdown("---")
+    if st.button("Continue to Outlier Detection →", type="primary", use_container_width=True):
+        st.session_state['current_step'] = 'outlier'
+        st.rerun()
 
-    if st.session_state.original_df.isnull().sum().sum() != st.session_state.processed_df.isnull().sum().sum():
-
-        st.info(f"ℹ️ {st.session_state.original_df.isnull().sum().sum() - st.session_state.processed_df.isnull().sum().sum()} eksik değer işlendi.")
 
 
-else:
-
-    st.info("👆 Lütfen analiz etmek istediğiniz CSV veya Excel dosyasını yükleyin")
-
+def outlier_section():
+    """Outlier detection and handling section"""
+    st.header("🎯 Outlier Detection & Handling")
     
-
-    # Örnek veri seti önerileri
-
-    st.header("📊 Örnek Veri Setleri")
-
+    df = st.session_state['processed_data']
     
-
+    # Get numerical columns
+    cat_cols, num_cols, cat_but_car, summary = grab_col_names(df)
+    
+    if not num_cols:
+        st.warning("No numerical columns found in the dataset!")
+        if st.button("Skip to Data Cleaning →", type="primary", use_container_width=True):
+            st.session_state['current_step'] = 'cleaning'
+            st.rerun()
+        return
+    
+    # Outlier detection settings
+    st.subheader("⚙️ Outlier Detection Settings")
+    
     col1, col2, col3 = st.columns(3)
-
     
-
     with col1:
-
-        st.info("**Titanic Veri Seti**\n\nEksik değerler içeren klasik veri seti. Age, Cabin, Embarked sütunlarında eksik değerler var.")
-
+        detection_method = st.selectbox(
+            "Detection Method",
+            ["IQR (Interquartile Range)", "Multivariate (LOF)"],
+            help="IQR detects outliers per column, LOF detects multivariate outliers"
+        )
     
-
     with col2:
-
-        st.info("**House Prices Veri Seti**\n\nGayrimenkul fiyatları verisi. Çok sayıda kategorik ve numerik değişken içerir.")
-
+        if detection_method == "IQR (Interquartile Range)":
+            q1 = st.slider("Lower Quartile (Q1)", 0.0, 0.5, 0.25, 0.05)
+            q3 = st.slider("Upper Quartile (Q3)", 0.5, 1.0, 0.75, 0.05)
+        else:
+            n_neighbors = st.slider("Number of Neighbors", 5, 50, 20, 5)
     
-
     with col3:
-
-        st.info("**Customer Data**\n\nMüşteri verisi. Demografik bilgiler ve satın alma davranışları.")
+        handling_method = st.selectbox(
+            "Handling Method",
+            ["None (Just Detect)", "Remove Outliers", "Cap Outliers"],
+            help="Choose how to handle detected outliers"
+        )
+    
+    # Column selection
+    st.markdown("---")
+    st.subheader("📊 Select Columns for Outlier Analysis")
+    
+    selected_columns = st.multiselect(
+        "Choose numerical columns",
+        num_cols,
+        default=num_cols[:min(5, len(num_cols))],
+        help="Select columns to analyze for outliers"
+    )
+    
+    if selected_columns and st.button("🔍 Detect Outliers", type="primary"):
+        
+        if detection_method == "IQR (Interquartile Range)":
+            # IQR method
+            outlier_summary = []
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for idx, col in enumerate(selected_columns):
+                status_text.text(f"Analyzing {col}...")
+                
+                # Check for outliers
+                has_outliers = check_outlier(df, col, q1, q3)
+                
+                if has_outliers:
+                    outlier_indices = grab_outliers(df, col, index=True, q1=q1, q3=q3)
+                    low, up = outlier_thresholds(df, col, q1, q3)
+                    
+                    outlier_summary.append({
+                        'Column': col,
+                        'Outliers': len(outlier_indices),
+                        'Percentage': f"{(len(outlier_indices) / len(df)) * 100:.2f}%",
+                        'Lower Limit': f"{low:.2f}",
+                        'Upper Limit': f"{up:.2f}"
+                    })
+                
+                progress_bar.progress((idx + 1) / len(selected_columns))
+            
+            status_text.empty()
+            progress_bar.empty()
+            
+            # Display results
+            if outlier_summary:
+                st.markdown("---")
+                st.subheader("📈 Outlier Detection Results")
+                
+                results_df = pd.DataFrame(outlier_summary)
+                st.dataframe(results_df, use_container_width=True)
+                
+                # Visualizations
+                st.subheader("📊 Outlier Visualizations")
+                
+                viz_col = st.selectbox("Select column to visualize", 
+                                      [row['Column'] for row in outlier_summary])
+                
+                if viz_col:
+                    low, up = outlier_thresholds(df, viz_col, q1, q3)
+                    fig = create_outlier_plot(df, viz_col, low, up)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Apply handling method
+                if handling_method != "None (Just Detect)":
+                    st.markdown("---")
+                    st.subheader("🛠️ Apply Outlier Handling")
+                    
+                    if st.button(f"Apply {handling_method}", type="secondary"):
+                        
+                        processed_df = df.copy()
+                        
+                        with st.spinner(f"Applying {handling_method}..."):
+                            for col in [row['Column'] for row in outlier_summary]:
+                                if handling_method == "Remove Outliers":
+                                    processed_df = remove_outlier(processed_df, col, q1, q3)
+                                elif handling_method == "Cap Outliers":
+                                    processed_df = replace_with_thresholds(processed_df, col, q1, q3)
+                        
+                        # Update session state
+                        st.session_state['processed_data'] = processed_df
+                        st.session_state['processing_steps'].append({
+                            'step': 'Outlier Handling',
+                            'method': handling_method,
+                            'details': f"Applied to {len(outlier_summary)} columns",
+                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+                        
+                        # Show results
+                        st.success(f"✅ {handling_method} applied successfully!")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Original Rows", len(df))
+                        with col2:
+                            st.metric("Processed Rows", len(processed_df))
+                        with col3:
+                            st.metric("Rows Affected", len(df) - len(processed_df))
+                        
+                        st.rerun()
+            else:
+                st.info("No outliers detected with current settings!")
+        
+        else:
+            # Multivariate LOF method
+            with st.spinner("Detecting multivariate outliers..."):
+                results = detect_multivariate_outliers(df[selected_columns])
+                
+                st.markdown("---")
+                st.subheader("📈 Multivariate Outlier Detection Results")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Outliers", results['n_outliers'])
+                with col2:
+                    st.metric("Percentage", f"{(results['n_outliers'] / len(df)) * 100:.2f}%")
+                with col3:
+                    st.metric("Threshold", f"{results['threshold']:.4f}")
+                
+                # Show outlier rows
+                if results['n_outliers'] > 0:
+                    st.subheader("🔍 Outlier Rows")
+                    outlier_df = df.iloc[results['outlier_indices']]
+                    st.dataframe(outlier_df.head(20), use_container_width=True)
+                    
+                    if len(outlier_df) > 20:
+                        st.info(f"Showing first 20 of {len(outlier_df)} outlier rows")
+    
+    # Navigation
+    st.markdown("---")
+    if st.button("Continue to Data Cleaning →", type="primary", use_container_width=True):
+        st.session_state['current_step'] = 'cleaning'
+        st.rerun()
