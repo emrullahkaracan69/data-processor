@@ -41,7 +41,7 @@ Try the app live: [data-processor.streamlit.app](https://data-processor.streamli
 - **Data Export**: Download processed data in CSV format
 
 ## 🏗️ Project Architecture
-'''
+"""
 data-processor/
 │
 ├── app.py                 # Main Streamlit application
@@ -54,7 +54,7 @@ data-processor/
     ├── data_loader.py   # Data loading and validation
     ├── outlier_handler.py # Outlier detection algorithms
     └── utils.py         # Utility functions and helpers
-'''
+"""
 ## 🔧 Installation & Setup
 
 ### Prerequisites
