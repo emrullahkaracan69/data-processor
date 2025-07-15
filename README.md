@@ -1,10 +1,6 @@
 
 # 📊 Data Processor - Advanced Data Preprocessing & Analysis Tool
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://data-processor.streamlit.app)
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-
 A professional-grade web application for comprehensive data preprocessing, outlier detection, and exploratory data analysis built with Streamlit.
 
 ## 🚀 Live Demo
@@ -39,7 +35,6 @@ Try the app live: [data-processor.streamlit.app](https://data-processor.streamli
 - **Data Type Conversion**: Automatic and manual type casting
 - **Feature Engineering**: Create new features from existing ones
 - **Data Export**: Download processed data in CSV format
-
 
 ## 🔧 Installation & Setup
 
@@ -99,19 +94,6 @@ Try the app live: [data-processor.streamlit.app](https://data-processor.streamli
 - Works well with high-dimensional data
 - Handles non-linear patterns
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (git checkout -b feature/AmazingFeature)
-3. Commit your changes (git commit -m 'Add some AmazingFeature')
-4. Push to the branch (git push origin feature/AmazingFeature)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 👨‍💻 Author
 
